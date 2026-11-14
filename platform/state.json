@@ -1,0 +1,21 @@
+{
+  "startedAt": "2026-11-14",
+  "currentDay": 1,
+  "currentLevel": 1,
+  "streakDays": 1,
+  "solvedCount": 0,
+  "mistakeSummary": {
+    "Logical mistakes": 0,
+    "Syntax mistakes": 0,
+    "Condition mistakes": 0,
+    "Loop mistakes": 0,
+    "Array indexing mistakes": 0,
+    "Mathematical mistakes": 0,
+    "Edge-case mistakes": 0,
+    "Time complexity mistakes": 0,
+    "Problem understanding mistakes": 0
+  },
+  "completedDays": [],
+  "assessments": []
+}
+

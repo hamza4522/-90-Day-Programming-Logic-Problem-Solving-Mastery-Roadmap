@@ -1,0 +1,22 @@
+{
+  "name": "logic-mastery-platform",
+  "version": "1.0.0",
+  "description": "Interactive Platform for Programming Logic & Problem-Solving Mastery",
+  "main": "platform/runner.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node platform/cli.js",
+    "test": "node platform/runner.js",
+    "track": "node platform/tracker.js",
+    "status": "node platform/tracker.js status",
+    "generate": "node scripts/generate-all-days.js"
+  },
+  "keywords": [
+    "problem-solving",
+    "algorithms",
+    "logic-building",
+    "javascript"
+  ],
+  "author": "Logic Coach",
+  "license": "MIT"
+}
