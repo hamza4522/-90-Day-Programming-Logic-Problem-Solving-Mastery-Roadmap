@@ -1,0 +1,8 @@
+# Paths Semgrep should NOT scan (same syntax as .gitignore)
+# Tests deliberately contain exploit payloads — scanning them is noise.
+tests/
+# Generated / third-party code
+.venv/
+venv/
+node_modules/
+*.min.js

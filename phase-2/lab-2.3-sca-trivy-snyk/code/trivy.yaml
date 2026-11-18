@@ -1,0 +1,14 @@
+# Trivy config — picked up automatically from the CWD, or via --config trivy.yaml
+# Every CLI flag has a config-file equivalent; checking this in makes local
+# runs and CI behave identically.
+scan:
+  scanners: [vuln, secret, misconfig, license]
+severity: [CRITICAL, HIGH, MEDIUM]
+vulnerability:
+  # Only show vulns that HAVE a fix: actionable output first. Run without this
+  # periodically to see the "no fix available" risk you're carrying.
+  ignore-unfixed: false
+pkg:
+  include-dev-deps: false   # devDependencies don't ship to prod
+ignorefile: .trivyignore.yaml
+exit-code: 0                # CI overrides this per gate (see workflow)

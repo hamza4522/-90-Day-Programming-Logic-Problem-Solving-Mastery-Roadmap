@@ -1,0 +1,93 @@
+# SCA pipeline — Lab 2.3
+#
+# Gates:
+#   * CRITICAL vulnerability with a fix available  -> fail
+#   * npm audit high+                              -> fail
+#   * denied license in SBOM                       -> fail
+# Reports (never fail): full Trivy SARIF, SBOMs in two formats.
+
+name: SCA
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 6 * * *"   # NEW CVEs are published daily against OLD code
+
+permissions:
+  contents: read
+
+env:
+  APP_DIR: secure          # switch to "vulnerable" to watch every gate fail
+
+jobs:
+  sca:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # `npm ci` installs EXACTLY the lockfile. Never `npm install` in CI.
+      # The lockfile is what you scan, so it must be what you ship.
+      - name: Install (lockfile only, no install scripts)
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          [ -f package-lock.json ] || npm install --package-lock-only --ignore-scripts
+          npm ci --ignore-scripts
+
+      - name: npm audit gate
+        working-directory: ${{ env.APP_DIR }}
+        run: npm audit --audit-level=high --omit=dev
+
+      - name: Trivy full report (SARIF)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: ${{ env.APP_DIR }}
+          trivy-config: trivy.yaml
+          format: sarif
+          output: trivy.sarif
+          exit-code: "0"
+
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy.sarif
+          category: trivy-fs
+
+      - name: Trivy gate (CRITICAL, fixable)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: ${{ env.APP_DIR }}
+          trivy-config: trivy.yaml
+          scanners: vuln
+          severity: CRITICAL
+          ignore-unfixed: true     # gate only on what devs can actually fix today
+          exit-code: "1"
+
+      - name: Generate SBOMs
+        run: |
+          trivy fs --format cyclonedx --output sbom-cyclonedx.json "$APP_DIR"
+          trivy fs --format spdx-json --output sbom-spdx.json "$APP_DIR"
+
+      - name: License policy gate
+        run: python3 scripts/sbom_license_check.py sbom-cyclonedx.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sca-reports
+          path: |
+            trivy.sarif
+            sbom-*.json
+          retention-days: 90     # auditors will ask "what shipped on date X?"

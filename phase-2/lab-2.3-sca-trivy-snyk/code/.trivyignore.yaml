@@ -1,0 +1,19 @@
+# Risk acceptance, as code — Lab 2.3
+#
+# Every ignored finding MUST have:
+#   statement   why it's acceptable (reachability, compensating control...)
+#   expired_at  forced re-review date. After it, the finding comes back.
+#
+# Contrast with a plain .trivyignore containing just "CVE-2020-8203": no
+# reason, no owner, no expiry = permanent invisible risk.
+#
+# For SBOM consumers, the standard way to publish this kind of statement is
+# VEX (Vulnerability Exploitability eXchange) — Trivy supports --vex. See Lab 4.2.
+vulnerabilities:
+  - id: CVE-2020-8203
+    paths:
+      - "vulnerable/package-lock.json"
+    statement: >-
+      lodash.zipObjectDeep is never called (verified via grep + Semgrep
+      reachability). Upgrade tracked in JIRA SEC-123. Owner: team-payments.
+    expired_at: 2026-12-31

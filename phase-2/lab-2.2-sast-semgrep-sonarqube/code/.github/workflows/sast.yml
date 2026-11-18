@@ -1,0 +1,107 @@
+# SAST pipeline for Lab 2.2 — copy into your own repo's .github/workflows/
+#
+# Design decisions worth noticing:
+#  * Least-privilege GITHUB_TOKEN: read-only by default, write only where needed.
+#  * Actions pinned to a major version here for readability. In production pin
+#    to a full commit SHA (uses: actions/checkout@<40-char-sha>) — a tag can be
+#    moved by whoever controls the action repo (see tj-actions/changed-files,
+#    March 2025). Dependabot can keep SHA pins up to date.
+#  * Two passes: SARIF upload (visibility, never fails) and a gate (fails on ERROR).
+#  * Diff-aware scanning on PRs keeps feedback fast and focused on new code.
+
+name: SAST
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 3 * * 1"   # weekly full scan — new rules catch old code
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sast-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  semgrep:
+    name: Semgrep
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write      # upload SARIF to the Security tab
+      pull-requests: write        # PR summary comment
+    container:
+      image: semgrep/semgrep:latest   # pin a digest in production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # needed for --baseline-commit diff scans
+
+      # 1) Unit-test our own rules before trusting them.
+      - name: Test custom rules
+        run: semgrep --test semgrep-rules/
+
+      # 2) Full report -> SARIF (never fails the build).
+      - name: Semgrep scan (report)
+        run: |
+          semgrep scan \
+            --config p/python --config p/flask --config p/owasp-top-ten \
+            --config semgrep-rules/ \
+            --sarif --output semgrep.sarif \
+            --json-output semgrep.json \
+            --metrics off || true
+
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep
+
+      # 3) Gate. On PRs only NEW findings (vs. the base branch) block the merge,
+      #    so teams adopting SAST on a legacy codebase are not blocked by debt.
+      - name: Semgrep gate (ERROR severity)
+        run: |
+          BASELINE=""
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git config --global --add safe.directory "$GITHUB_WORKSPACE"
+            BASELINE="--baseline-commit ${{ github.event.pull_request.base.sha }}"
+          fi
+          semgrep scan \
+            --config p/python --config p/flask --config semgrep-rules/ \
+            --severity ERROR --error --metrics off $BASELINE
+
+      - name: PR summary
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            if (!fs.existsSync('semgrep.json')) return;
+            const { results } = JSON.parse(fs.readFileSync('semgrep.json', 'utf8'));
+            const count = s => results.filter(r => r.extra.severity === s).length;
+            const rows = results.slice(0, 20).map(r =>
+              `| ${r.extra.severity} | \`${r.check_id.split('.').pop()}\` | ${r.path}:${r.start.line} |`);
+            const body = [
+              '### 🔍 Semgrep SAST results',
+              `**ERROR:** ${count('ERROR')} · **WARNING:** ${count('WARNING')} · **INFO:** ${count('INFO')}`,
+              '', '| Severity | Rule | Location |', '|---|---|---|', ...rows,
+              results.length > 20 ? `\n…and ${results.length - 20} more in the Security tab.` : ''
+            ].join('\n');
+            await github.rest.issues.createComment({ ...context.repo, issue_number: context.issue.number, body });
+
+  # SAST says "this looks dangerous"; exploit tests say "this IS exploitable".
+  security-regression-tests:
+    name: Exploit regression tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: pytest -v tests/

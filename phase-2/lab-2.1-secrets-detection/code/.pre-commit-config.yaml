@@ -1,0 +1,46 @@
+# Pre-commit hooks — Lab 2.1
+#
+#   pip install pre-commit
+#   pre-commit install                 # installs .git/hooks/pre-commit
+#   pre-commit run --all-files         # run once against everything
+#
+# Defence in depth: hooks are the FIRST line (fast feedback, on the dev's
+# machine), but they're optional — `git commit --no-verify` skips them. CI
+# (secrets-scan.yml) is the line that cannot be skipped.
+
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks:
+      - id: gitleaks
+        args: ["--config", ".gitleaks.toml"]
+
+  # Second engine with a different detection approach (entropy + plugins).
+  # Create the baseline once:  detect-secrets scan > .secrets.baseline
+  # Review it interactively:   detect-secrets audit .secrets.baseline
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ["--baseline", ".secrets.baseline"]
+        exclude: package-lock\.json
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: detect-private-key        # -----BEGIN ... PRIVATE KEY-----
+      - id: detect-aws-credentials
+        args: ["--allow-missing-credentials"]
+      - id: check-added-large-files   # DB dumps / binaries often hide secrets
+        args: ["--maxkb=500"]
+      - id: forbid-new-submodules
+
+  # Block well-known secret FILES by name, regardless of their content.
+  - repo: local
+    hooks:
+      - id: forbid-secret-files
+        name: Forbid committing secret files
+        language: fail
+        entry: "Secret-bearing file type — use a secret manager, not git"
+        files: '(^|/)(\.env(\..*)?|.*\.pem|.*\.key|id_rsa|id_ed25519|.*\.pfx|.*\.p12|credentials\.json|terraform\.tfstate.*)$'
+        exclude: '(^|/)\.env\.example$'

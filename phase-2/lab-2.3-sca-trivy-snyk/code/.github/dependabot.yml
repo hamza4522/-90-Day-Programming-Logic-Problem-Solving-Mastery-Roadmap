@@ -1,0 +1,20 @@
+# Dependabot — continuous SCA. Scans in CI find vulns at build time;
+# Dependabot opens the PRs that FIX them, including for repos nobody touches.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /secure
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      # One PR for all minor/patch bumps keeps review load sane.
+      minor-and-patch:
+        update-types: [minor, patch]
+    labels: [dependencies, security]
+
+  # Keep your CI actions patched too. They run with access to your secrets.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

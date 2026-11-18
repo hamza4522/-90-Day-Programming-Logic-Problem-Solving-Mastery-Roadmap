@@ -1,0 +1,19 @@
+{
+  "name": "sca-lab-vulnerable",
+  "version": "1.0.0",
+  "private": true,
+  "description": "INTENTIONALLY VULNERABLE dependencies for Lab 2.3. Do not deploy.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "audit": "npm audit --json > npm-audit.json || true"
+  },
+  "dependencies": {
+    "axios": "0.18.0",
+    "express": "4.17.1",
+    "jsonwebtoken": "8.5.1",
+    "lodash": "4.17.4",
+    "minimist": "1.2.0",
+    "node-fetch": "2.6.0"
+  }
+}

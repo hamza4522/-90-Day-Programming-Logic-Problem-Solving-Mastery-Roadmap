@@ -1,0 +1,15 @@
+# .gitleaksignore — suppress ONE specific finding by its fingerprint.
+#
+# Fingerprint format:  <commit-sha>:<file>:<rule-id>:<line>
+# Get it from the "Fingerprint:" line in `gitleaks git -v` output, or the
+# "Fingerprint" field of the JSON report.
+#
+# Why fingerprints and not path globs? A fingerprint pins the exact commit +
+# line. If someone later adds a REAL key to the same file, it still gets
+# caught. A path allowlist would hide it forever.
+#
+# Every entry needs: who, when, why. Review this file in every PR.
+#
+# Example (replace with a fingerprint from YOUR sandbox scan):
+# 2025-01-15 alice  AWS docs example key in parser test fixture, not a credential
+# 3f2a1b9c0d8e7f6a5b4c3d2e1f0a9b8c7d6e5f4a:tests/test_config.py:aws-access-token:2

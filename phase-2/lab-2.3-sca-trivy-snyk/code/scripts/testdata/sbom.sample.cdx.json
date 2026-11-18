@@ -1,0 +1,12 @@
+{
+  "bomFormat": "CycloneDX", "specVersion": "1.5", "version": 1,
+  "metadata": {"component": {"type": "application", "name": "sca-lab-vulnerable"}},
+  "components": [
+    {"type": "library", "name": "lodash", "version": "4.17.4", "purl": "pkg:npm/lodash@4.17.4", "licenses": [{"license": {"id": "MIT"}}]},
+    {"type": "library", "name": "express", "version": "4.17.1", "purl": "pkg:npm/express@4.17.1", "licenses": [{"license": {"id": "MIT"}}]},
+    {"type": "library", "name": "dual-licensed-lib", "version": "1.0.0", "purl": "pkg:npm/dual-licensed-lib@1.0.0", "licenses": [{"expression": "MIT OR GPL-3.0-only"}]},
+    {"type": "library", "name": "some-mpl-lib", "version": "2.0.0", "purl": "pkg:npm/some-mpl-lib@2.0.0", "licenses": [{"license": {"id": "MPL-2.0"}}]},
+    {"type": "library", "name": "agpl-server-lib", "version": "0.9.0", "purl": "pkg:npm/agpl-server-lib@0.9.0", "licenses": [{"license": {"id": "AGPL-3.0-only"}}]},
+    {"type": "library", "name": "mystery-pkg", "version": "0.0.1", "purl": "pkg:npm/mystery-pkg@0.0.1"}
+  ]
+}

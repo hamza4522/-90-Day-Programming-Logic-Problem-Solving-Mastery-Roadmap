@@ -1,0 +1,127 @@
+# Custom Semgrep rules for Lab 2.2
+#
+# Run against the app:     semgrep --config semgrep-rules/ vulnerable/ secure/
+# Unit-test the rules:     semgrep --test semgrep-rules/
+#
+# `semgrep --test` pairs custom.yaml with custom.py and checks that every
+# line annotated `# ruleid: <id>` IS flagged and every `# ok: <id>` is NOT.
+# Treat detection rules like code: they get tests, review and CI.
+#
+# Three styles of rule are shown:
+#   1. Pure pattern matching       (no-shell-true, weak-password-hash)
+#   2. Pattern + negation          (flask-render-template-string-fstring)
+#   3. Taint tracking source->sink (flask-sqli-taint, untrusted-deserialization)
+
+rules:
+  # ------------------------------------------------------------------ 1
+  - id: no-shell-true
+    languages: [python]
+    severity: ERROR
+    message: >-
+      subprocess called with shell=True. If any part of the command comes from
+      user input this is OS command injection (CWE-78). Pass an argument list
+      and leave shell=False: subprocess.run(["ping", "-c", "1", host]).
+    metadata:
+      cwe: "CWE-78: OS Command Injection"
+      owasp: "A03:2021 - Injection"
+      confidence: HIGH
+      references:
+        - https://docs.python.org/3/library/subprocess.html#security-considerations
+    pattern-either:
+      - pattern: subprocess.$FUNC(..., shell=True, ...)
+      - pattern: os.system(...)
+      - pattern: os.popen(...)
+
+  # ------------------------------------------------------------------ 2
+  - id: weak-password-hash
+    languages: [python]
+    severity: WARNING
+    message: >-
+      MD5/SHA1 are fast, unsalted hashes and must not be used for passwords
+      (CWE-916). Use argon2id, bcrypt, scrypt, or werkzeug.security.generate_password_hash.
+    metadata:
+      cwe: "CWE-916: Use of Password Hash With Insufficient Computational Effort"
+      owasp: "A02:2021 - Cryptographic Failures"
+    pattern-either:
+      - pattern: hashlib.md5(...)
+      - pattern: hashlib.sha1(...)
+      - pattern: hashlib.new("md5", ...)
+      - pattern: hashlib.new("sha1", ...)
+    # Allow the explicit opt-out Python 3.9+ provides for non-security uses
+    # (e.g. cache keys, ETags):
+    pattern-not: hashlib.$H(..., usedforsecurity=False)
+
+  # ------------------------------------------------------------------ 3
+  - id: flask-render-template-string-fstring
+    languages: [python]
+    severity: ERROR
+    message: >-
+      Template string is built dynamically and passed to render_template_string.
+      Attacker input becomes template CODE -> SSTI -> RCE (CWE-1336).
+      Use a constant template and pass values as keyword arguments:
+      render_template_string("Hello {{ name }}", name=name)
+    metadata:
+      cwe: "CWE-1336: Server-Side Template Injection"
+      owasp: "A03:2021 - Injection"
+    patterns:
+      - pattern-either:
+          - pattern: flask.render_template_string($T, ...)
+          - pattern: render_template_string($T, ...)
+      # A string literal is safe; anything computed is suspicious.
+      - pattern-not: flask.render_template_string("...", ...)
+      - pattern-not: render_template_string("...", ...)
+
+  # ------------------------------------------------------------------ 4
+  - id: flask-sqli-taint
+    languages: [python]
+    severity: ERROR
+    mode: taint
+    message: >-
+      Data from the HTTP request flows into a SQL string (CWE-89). Use a
+      parameterized query: cursor.execute("... WHERE id = ?", (user_id,))
+    metadata:
+      cwe: "CWE-89: SQL Injection"
+      owasp: "A03:2021 - Injection"
+      confidence: HIGH
+    pattern-sources:
+      - pattern-either:
+          - pattern: flask.request.$ATTR.get(...)
+          - pattern: flask.request.$ATTR[...]
+          - pattern: request.$ATTR.get(...)
+          - pattern: request.$ATTR[...]
+    pattern-sanitizers:
+      # int() conversion means the value can no longer carry SQL syntax.
+      - pattern: int(...)
+    pattern-sinks:
+      # Only the FIRST argument (the SQL text) is a sink — values passed in
+      # the parameters tuple are safe by design.
+      - patterns:
+          - pattern-inside: $CONN.execute($SQL, ...)
+          - focus-metavariable: $SQL
+
+  # ------------------------------------------------------------------ 5
+  - id: untrusted-deserialization
+    languages: [python]
+    severity: ERROR
+    mode: taint
+    message: >-
+      Request data reaches a deserializer that can construct arbitrary objects
+      (CWE-502) — this is remote code execution. Use json.loads or
+      yaml.safe_load for untrusted input.
+    metadata:
+      cwe: "CWE-502: Deserialization of Untrusted Data"
+      owasp: "A08:2021 - Software and Data Integrity Failures"
+    pattern-sources:
+      - pattern-either:
+          - pattern: request.get_data(...)
+          - pattern: request.data
+          - pattern: request.files[...]
+    pattern-sinks:
+      - pattern-either:
+          - pattern: pickle.loads(...)
+          - pattern: pickle.load(...)
+          - pattern: marshal.loads(...)
+          - patterns:
+              - pattern: yaml.load(...)
+              - pattern-not: yaml.load(..., Loader=yaml.SafeLoader)
+              - pattern-not: yaml.load(..., Loader=yaml.CSafeLoader)

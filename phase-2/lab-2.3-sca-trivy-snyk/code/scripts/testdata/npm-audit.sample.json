@@ -1,0 +1,29 @@
+{
+  "_comment": "Trimmed, illustrative sample of `npm audit --json` output (npm v7+ format). Run the real thing for current data.",
+  "auditReportVersion": 2,
+  "vulnerabilities": {
+    "lodash": {
+      "name": "lodash", "severity": "critical", "isDirect": true, "range": "<=4.17.20", "fixAvailable": true,
+      "via": [
+        {"source": 1065, "name": "lodash", "title": "Prototype Pollution in lodash", "url": "https://github.com/advisories/GHSA-fvqr-27wr-82fm", "severity": "moderate"},
+        {"source": 1066, "name": "lodash", "title": "Prototype Pollution in lodash", "url": "https://github.com/advisories/GHSA-jf85-cpcp-j695", "severity": "critical"}
+      ]
+    },
+    "minimist": {
+      "name": "minimist", "severity": "critical", "isDirect": true, "range": "<=1.2.5", "fixAvailable": true,
+      "via": [
+        {"source": 1179, "name": "minimist", "title": "Prototype Pollution in minimist", "url": "https://github.com/advisories/GHSA-xvch-5gv4-984h", "severity": "critical"}
+      ]
+    },
+    "jsonwebtoken": {
+      "name": "jsonwebtoken", "severity": "moderate", "isDirect": true, "range": "<=8.5.1", "fixAvailable": true,
+      "via": [
+        {"source": 1097, "name": "jsonwebtoken", "title": "jsonwebtoken unrestricted key type could lead to legacy keys usage", "url": "https://github.com/advisories/GHSA-8cf7-32gw-wr33", "severity": "high"}
+      ]
+    },
+    "body-parser": {
+      "name": "body-parser", "severity": "high", "isDirect": false, "via": ["qs"], "fixAvailable": true
+    }
+  },
+  "metadata": {"vulnerabilities": {"info": 0, "low": 0, "moderate": 1, "high": 1, "critical": 2, "total": 4}}
+}

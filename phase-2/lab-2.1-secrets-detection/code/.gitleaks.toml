@@ -1,0 +1,52 @@
+# Gitleaks configuration — Lab 2.1
+#
+# Use:  gitleaks git . --config .gitleaks.toml -v
+#
+# Default rules (~150) cover public providers: AWS, GitHub, Stripe, Slack...
+# They CANNOT know your organisation's own token formats. A custom rule closes
+# that gap — this is one of the highest-value things a security team can add.
+
+title = "Lab 2.1 gitleaks config"
+
+# Keep all built-in rules and add ours on top.
+[extend]
+useDefault = true
+
+# ---------------------------------------------------------------------------
+# Custom rule: internal ACME API tokens, format  acme_live_<32 hex>
+# Real-world tip: design your internal tokens with a unique prefix
+# (like ghp_, sk_live_, xoxb-) precisely so they are easy to detect.
+# ---------------------------------------------------------------------------
+[[rules]]
+id = "acme-api-token"
+description = "ACME internal API token"
+regex = '''\bacme_(live|test)_[0-9a-f]{32}\b'''
+keywords = ["acme_live_", "acme_test_"]   # cheap pre-filter, makes scans fast
+tags = ["internal", "api-token"]
+
+# ---------------------------------------------------------------------------
+# Custom rule: password-looking assignments. Generic, so noisier: entropy
+# threshold filters out things like  password = "changeme".
+# ---------------------------------------------------------------------------
+[[rules]]
+id = "generic-password-assignment"
+description = "Hardcoded password assignment"
+regex = '''(?i)(?:password|passwd|pwd|db_pass)\w*\s*[:=]\s*["']([^"'\s]{8,})["']'''
+secretGroup = 1
+entropy = 3.0
+keywords = ["password", "passwd", "pwd", "db_pass"]
+
+# ---------------------------------------------------------------------------
+# Global allowlist — prefer NARROW allowlists. Every entry here is a blind
+# spot. Never allowlist a whole directory "because it's noisy".
+# ---------------------------------------------------------------------------
+[allowlist]
+description = "Known-safe values and generated files"
+paths = [
+  '''(^|/)package-lock\.json$''',
+  '''(^|/)\.secrets\.baseline$''',
+]
+# Tempting but WRONG for this lab: allowlisting the AWS docs example key by
+# value would also hide it in config.py, which is exactly the leak we want
+# to find. Suppress the single test-fixture finding via .gitleaksignore.
+# regexes = ['''AKIAIOSFODNN7EXAMPLE''']
